@@ -105,7 +105,7 @@ Editor.prototype.zoom = function (value) {
 	return this.render.options.zoom;
 };
 
-Editor.prototype.selection = function (ci) {
+Editor.prototype.selection = function (ci) { // eslint-disable-line max-statements
 	let restruct = this.render.ctab;
 	if (arguments.length > 0) {
 		this._selection = null; // eslint-disable-line
@@ -218,7 +218,7 @@ Editor.prototype.undo = function () {
 	if (this.tool() && this.tool().cancel)
 		this.tool().cancel();
 	this.selection(null);
-	if (this._tool instanceof toolMap['paste']) {
+	if (this._tool instanceof toolMap['paste']) { // eslint-disable-line no-underscore-dangle
 		this.event.change.dispatch();
 		return;
 	}
@@ -235,7 +235,7 @@ Editor.prototype.redo = function () {
 	if (this.tool() && this.tool().cancel)
 		this.tool().cancel();
 	this.selection(null);
-	if (this._tool instanceof toolMap['paste']) {
+	if (this._tool instanceof toolMap['paste']) { // eslint-disable-line no-underscore-dangle
 		this.event.change.dispatch();
 		return;
 	}
@@ -361,7 +361,7 @@ function recoordinate(editor, rp/* , vp*/) {
 	// rp is a point in scaled coordinates, which will be positioned
 	// vp is the point where the reference point should now be (in view coordinates)
 	//    or the center if not set
-	console.assert(rp, 'Reference point not specified');
+	console.assert(rp, 'Reference point not specified'); // eslint-disable-line no-console
 	editor.render.setScrollOffset(0, 0);
 }
 
