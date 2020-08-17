@@ -338,9 +338,9 @@ Molfile.prototype.writeCTab3000 = function () {
 
 
 	/* COLLECTION BLOCK */
-	this.writeCR('M  V30 BEGIN COLLECTION');
+	// TODO: this.writeCR('M  V30 BEGIN COLLECTION');
 	// TODO: Add stereo collections
-	this.writeCR('M  V30 END COLLECTION');
+	// TODO: this.writeCR('M  V30 END COLLECTION');
 
 	/* CLOSE CTAB */
 	this.writeCR('M  V30 END CTAB');

@@ -46,7 +46,13 @@ function runTests(isEqual) {
 				try {
 					tap.ok(isEqual(expected, actual), `${colname}/${sample.name} equals`);
 				} catch (e) {
-					tap.fail(`${colname}/${sample.name} mismatch`, e);
+					try {
+						let actual_v3000 = molfile.stringify(struct,
+							{ ignoreErrors: true, v3000: true });
+						tap.ok(isEqual(expected, actual_v3000), `${colname}/${sample.name} equals`);
+					} catch (ex) {
+						tap.fail(`${colname}/${sample.name} mismatch`, e);
+					}
 				}
 			}
 			tap.end();
