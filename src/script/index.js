@@ -37,9 +37,9 @@ function saveSmiles() {
 		.catch(() => smiles.stringify(struct));
 }
 
-function getMolfile() {
+function getMolfile(v3000 = false) {
 	return molfile.stringify(ketcher.editor.struct(),
-		{ ignoreErrors: true });
+		{ ignoreErrors: true, v3000 });
 }
 
 function setMolecule(molString) {
@@ -85,7 +85,7 @@ window.onload = function () {
 		'gross-formula-add-rsites': true
 	});
 	ketcher.ui = ui(Object.assign({}, params, buildInfo), ketcher.server);
-	ketcher.editor = global._ui_editor;
+	ketcher.editor = global._ui_editor; // eslint-disable-line no-underscore-dangle
 	ketcher.server.then(() => {
 		if (params.mol)
 			ketcher.ui.load(params.mol);

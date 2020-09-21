@@ -85,6 +85,8 @@ Molfile.prototype.saveMolecule = function (molecule, skipSGroupErrors, norgroups
 	this.reaction = molecule.rxnArrows.size > 0;
 	if (molecule.rxnArrows.size > 1)
 		throw new Error('Reaction may not contain more than one arrow');
+	if (this.reaction && molecule.v3000)
+		throw new Error('Reactions may not be exported in V3000 at this time');
 	this.molfile = '' + molecule.name;
 	if (this.reaction) {
 		if (molecule.rgroups.size > 0)
@@ -107,6 +109,8 @@ Molfile.prototype.saveMolecule = function (molecule, skipSGroupErrors, norgroups
 		return this.molfile;
 	}
 
+	if (molecule.rgroups.size > 0 && molecule.v3000)
+		throw new Error('Rgroups are not supported in V3000 at this time');
 	if (molecule.rgroups.size > 0) {
 		if (norgroups) {
 			molecule = molecule.getScaffold();
@@ -138,7 +142,8 @@ Molfile.prototype.saveMolecule = function (molecule, skipSGroupErrors, norgroups
 	this.writeHeader();
 
 	// TODO: saving to V3000
-	this.writeCTab2000();
+	if (this.v3000) this.writeCTab3000();
+	else this.writeCTab2000();
 
 	return this.molfile;
 };
@@ -200,6 +205,29 @@ Molfile.prototype.writePaddedFloat = function (number, width, precision) {
 	this.write(utils.paddedNum(number, width, precision));
 };
 
+Molfile.prototype.writeCTab3000Header = function () {
+	/* saver */
+	this.writePaddedNumber(0, 3);
+	this.writePaddedNumber(0, 3);
+	this.writePaddedNumber(0, 3);
+	this.writeWhiteSpace(3);
+	this.writePaddedNumber(0, 3);
+	this.writePaddedNumber(0, 3);
+	this.writeWhiteSpace(12);
+	this.writePaddedNumber(999, 3);
+	this.writeCR(' V3000');
+
+	this.writeCR('M  V30 BEGIN CTAB');
+
+	this.write('M  V30 COUNTS ');
+	this.write((this.molecule.atoms.size - 0) + ' ');
+	this.write((this.molecule.bonds.size - 0) + ' ');
+	this.write(0 + ' ');
+	this.write(0 + ' ');
+	this.write((this.molecule.isChiral ? 1 : 0));
+	this.writeCR();
+};
+
 Molfile.prototype.writeCTab2000Header = function () {
 	/* saver */
 
@@ -213,6 +241,110 @@ Molfile.prototype.writeCTab2000Header = function () {
 	this.writeWhiteSpace(12);
 	this.writePaddedNumber(999, 3);
 	this.writeCR(' V2000');
+};
+
+Molfile.prototype.writeCTab3000 = function () {
+	this.writeCTab3000Header();
+
+	/* ATOM BLOCK */
+	this.mapping = {};
+	var i = 1;
+	this.writeCR('M  V30 BEGIN ATOM');
+	this.molecule.atoms.forEach((atom, id) => {
+		var label = atom.label;
+
+		if (atom.atomList != null)
+			throw new Error('Cannot export atomlists into V3000 at present');
+		if (atom['pseudo'])
+			throw new Error('Cannot export pseudoatoms into V3000 at present');
+		if (atom['alias'])
+			throw new Error('Cannot export aliased atoms into V3000 at present');
+		if (['A', 'Q', 'X', '*', 'R#'].indexOf(label) !== -1)
+			throw new Error('Cannot export \'A\', \'Q\', \'X\', \'*\', \'R#\' atoms into V3000 at present');
+		if (!element.map[label])
+			throw new Error('Atom "' + label + '" not recognized for export to V3000 molfile');
+
+		this.write('M  V30 ');
+		this.write(i + ' ');
+		this.write(label + ' ');
+		this.write(atom.pp.x.toFixed(4) + ' ');
+		this.write(-atom.pp.y.toFixed(4) + ' ');
+		this.write(atom.pp.z.toFixed(4) + ' ');
+		if (typeof atom.aam === 'undefined')
+			atom.aam = 0;
+		this.write(atom.aam.toString());
+
+		if (typeof atom.charge === 'undefined')
+			atom.charge = 0;
+		if (atom.charge !== 0) this.write(' CHG=' + atom.charge);
+
+		if (typeof atom.radical === 'undefined')
+			atom.radical = 0;
+		if (atom.radical !== 0) this.write(' RAD=' + atom.radical);
+
+		if (typeof atom.isotope === 'undefined')
+			atom.isotope = 0;
+		if (atom.isotope !== 0) this.write(' MASS=' + atom.isotope);
+
+		if (typeof atom.explicitValence === 'undefined')
+			atom.explicitValence = -1;
+		if (atom.explicitValence !== -1) {
+			if (atom.explicitValence === 0) this.write(' VAL=-1');
+			else this.write(' VAL=' + atom.explicitValence);
+		}
+
+		if (typeof atom.hCount === 'undefined')
+			atom.hCount = 0;
+		if (atom.hCount !== 0) this.write(' HCOUNT=' + atom.hCount);
+		this.writeCR();
+
+		this.mapping[id] = i;
+		i++;
+	}, this);
+	this.writeCR('M  V30 END ATOM');
+
+
+	/* BOND BLOCK */
+	this.bondMapping = {};
+	i = 1;
+	this.writeCR('M  V30 BEGIN BOND');
+	this.molecule.bonds.forEach((bond, id) => {
+		this.write('M  V30 ');
+		this.write(i + ' ');
+		this.write(bond.type + ' ');
+		this.write(this.mapping[bond.begin] + ' ');
+		this.write(this.mapping[bond.end]);
+
+		if (typeof bond.stereo === 'undefined')
+			bond.stereo = 0;
+		if (bond.stereo === 3)
+			bond.stereo = 2;
+		if (bond.stereo === 4)
+			bond.stereo = 2;
+		if (bond.stereo === 6)
+			bond.stereo = 3;
+		if (bond.stereo !== 0) this.write(' CFG=' + bond.stereo);
+
+		if (typeof bond.topology === 'undefined')
+			bond.topology = 0;
+		if (bond.topology !== 0) this.write(' TOPO=' + bond.topology);
+
+		this.writeCR();
+
+		this.bondMapping[id] = i;
+		i++;
+	});
+	this.writeCR('M  V30 END BOND');
+
+
+	/* COLLECTION BLOCK */
+	// TODO: this.writeCR('M  V30 BEGIN COLLECTION');
+	// TODO: Add stereo collections
+	// TODO: this.writeCR('M  V30 END COLLECTION');
+
+	/* CLOSE CTAB */
+	this.writeCR('M  V30 END CTAB');
+	this.writeCR('M  END');
 };
 
 Molfile.prototype.writeCTab2000 = function (rgroups) { // eslint-disable-line max-statements
